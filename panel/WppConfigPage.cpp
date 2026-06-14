@@ -60,6 +60,15 @@ WppConfigPage::WppConfigPage(QWidget *parent) : QWidget(parent) {
     cl->addWidget(makeSlider(QString::fromUtf8("\u8fb9\u7f18\u8ddd\u79bb"), "control_edge_offset",   0, 50, 4));
     root->addWidget(cg);
 
+    // USB assistant group
+    auto *ug = new QGroupBox(QString::fromUtf8("U\u76d8\u52a9\u624b\u8bbe\u7f6e"));
+    auto *ul = new QVBoxLayout(ug);
+    m_usbCb = new QCheckBox(QString::fromUtf8("\u542f\u7528U\u76d8\u52a9\u624b\uff08\u63d2\u5165U\u76d8\u65f6\u53f3\u4e0b\u89d2\u5f39\u7a97\u63d0\u793a\uff09"));
+    m_usbCb->setStyleSheet("QCheckBox { color: #ddd; font-size: 13px; spacing: 8px; } QCheckBox::indicator { width: 16px; height: 16px; }");
+    ul->addWidget(m_usbCb);
+    ul->addWidget(makeSlider(QString::fromUtf8("\u5f39\u7a97\u6301\u7eed\u65f6\u95f4"), "usb_popup_duration", 2000, 15000, 5000));
+    root->addWidget(ug);
+
     // auto-start
     m_autoStartCb = new QCheckBox(QString::fromUtf8("\u5f00\u673a\u81ea\u542f\u52a8 WPPTouchHelper"));
     m_autoStartCb->setStyleSheet(
@@ -114,11 +123,13 @@ void WppConfigPage::loadCfg() {
         e.sl->setValue(v);
         e.sp->setValue(v);
     }
+    m_usbCb->setChecked(m_cfg.value("usb_enabled").toBool(true));
 }
 
 void WppConfigPage::saveCfg() {
     for (auto &e : m_entries)
         m_cfg[e.key] = e.sl->value();
+    m_cfg["usb_enabled"] = m_usbCb->isChecked();
     QString path = QCoreApplication::applicationDirPath() + "/touchtools.json";
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) {

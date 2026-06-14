@@ -13,6 +13,8 @@ public:
     int controlFontSize() const;
     int controlBtnSize() const;
     int controlEdgeOffset() const;
+    bool usbEnabled() const;
+    int usbPopupDuration() const;
 
     void save();
     void reload();

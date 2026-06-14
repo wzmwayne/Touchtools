@@ -35,6 +35,9 @@ void Config::load() {
     def("control_font_size", 22);
     def("control_btn_size", 44);
     def("control_edge_offset", 4);
+    def("usb_popup_duration", 5000);
+
+    if (!m_obj.contains("usb_enabled")) { m_obj["usb_enabled"] = true; dirty = true; }
 
     if (m_obj.contains("control_width"))  { m_obj.remove("control_width");  dirty = true; }
     if (m_obj.contains("control_height")) { m_obj.remove("control_height"); dirty = true; }
@@ -62,3 +65,5 @@ int Config::controlOpacity()     const { return m_obj["control_opacity"].toInt()
 int Config::controlFontSize()    const { return m_obj["control_font_size"].toInt(); }
 int Config::controlBtnSize()     const { return m_obj["control_btn_size"].toInt(); }
 int Config::controlEdgeOffset()  const { return m_obj["control_edge_offset"].toInt(); }
+bool Config::usbEnabled()         const { return m_obj["usb_enabled"].toBool(); }
+int Config::usbPopupDuration()    const { return m_obj["usb_popup_duration"].toInt(); }

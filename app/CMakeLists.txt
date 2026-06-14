@@ -10,6 +10,7 @@ add_executable(WPPTouchHelper
     FloatingControl.cpp
     FloatingToolbar.cpp
     KeySimulator.cpp
+    USBAssistant.cpp
 )
 
 target_link_libraries(WPPTouchHelper

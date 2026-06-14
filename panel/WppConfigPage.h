@@ -31,6 +31,7 @@ private:
     QPushButton *m_stopBtn;
     QPushButton *m_saveBtn;
     QCheckBox *m_autoStartCb;
+    QCheckBox *m_usbCb;
     QTimer *m_timer;
     QJsonObject m_cfg;
 
