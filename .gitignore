@@ -4,7 +4,7 @@ dist/
 
 # Installer outputs
 mysetup.exe
-WPStools_Installer.exe
+WPPtools_Installer.exe
 install/*.exe
 
 # IDE
