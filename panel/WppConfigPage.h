@@ -2,7 +2,6 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
-#include <QCheckBox>
 #include <QSlider>
 #include <QSpinBox>
 #include <QTimer>
@@ -17,7 +16,6 @@ private slots:
     void onStart();
     void onStop();
     void onSave();
-    void onAutoStartToggled(bool on);
 
 private:
     void loadCfg();
@@ -30,8 +28,6 @@ private:
     QPushButton *m_startBtn;
     QPushButton *m_stopBtn;
     QPushButton *m_saveBtn;
-    QCheckBox *m_autoStartCb;
-    QCheckBox *m_usbCb;
     QTimer *m_timer;
     QJsonObject m_cfg;
 

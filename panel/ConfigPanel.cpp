@@ -6,8 +6,22 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QTextBrowser>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QApplication>
 #include <QMouseEvent>
+#include <QTimer>
+#include <QProcess>
+#include <QLocalSocket>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QGroupBox>
+#include <QCheckBox>
+#include <QFile>
+#include <QDir>
+#include <windows.h>
+#include <shellapi.h>
 
 ConfigPanel::ConfigPanel(QWidget *parent) : QWidget(parent) {
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
@@ -81,15 +95,218 @@ ConfigPanel::ConfigPanel(QWidget *parent) : QWidget(parent) {
         "QListWidget::item:selected { background: #333; color: #fff; }"
         "QListWidget::item:hover { background: #282828; color: #ddd; }"
     );
-    m_navList->addItem("WPPTouchHelper");
-    m_navList->addItem(QString::fromUtf8("\u5173\u4e8e Touchtools ..."));
+    m_navList->insertItem(0, "TTcore");
+    m_navList->insertItem(1, "WPPTouchHelper");
+    m_navList->insertItem(2, QString::fromUtf8("\u5173\u4e8e Touchtools ..."));
     m_navList->setCurrentRow(0);
 
     // stacked content
     m_stack = new QStackedWidget;
 
-    // page 0: WPPTouchHelper config
-    m_stack->addWidget(new WppConfigPage);
+    // ── page 0: TTcore management ──
+    auto *ttPage = new QWidget;
+    auto *ttLayout = new QVBoxLayout(ttPage);
+    ttLayout->setContentsMargins(16, 10, 16, 12);
+    ttLayout->setSpacing(10);
+
+    // header: status + control
+    auto *ttHeader = new QHBoxLayout;
+    auto *ttIcon = new QLabel(QString::fromUtf8("\u25cf"));
+    ttIcon->setStyleSheet("color: #666; font-size: 18px;");
+    ttIcon->setFixedWidth(20);
+    auto *ttStatus = new QLabel(QString::fromUtf8("\u68c0\u67e5\u4e2d..."));
+    auto *ttStartBtn = new QPushButton(QString::fromUtf8("\u25b6 \u542f\u52a8"));
+    auto *ttStopBtn  = new QPushButton(QString::fromUtf8("\u25a0 \u505c\u6b62"));
+    ttStopBtn->setEnabled(false);
+    ttHeader->addWidget(ttIcon);
+    ttHeader->addWidget(ttStatus);
+    ttHeader->addStretch();
+    ttHeader->addWidget(ttStartBtn);
+    ttHeader->addWidget(ttStopBtn);
+    ttLayout->addLayout(ttHeader);
+
+    // component management
+    auto *cg = new QGroupBox(QString::fromUtf8("\u7ec4\u4ef6\u7ba1\u7406"));
+    auto *cl = new QVBoxLayout(cg);
+    auto *wppCb = new QCheckBox(QString::fromUtf8("WPPTouchHelper\uff08\u5e7b\u706f\u7247\u63a7\u4ef6\uff09"));
+    auto *usbCb = new QCheckBox(QString::fromUtf8("U\u76d8\u52a9\u624b"));
+    wppCb->setStyleSheet("QCheckBox { color: #ddd; font-size: 13px; spacing: 8px; } QCheckBox::indicator { width: 16px; height: 16px; }");
+    usbCb->setStyleSheet("QCheckBox { color: #ddd; font-size: 13px; spacing: 8px; } QCheckBox::indicator { width: 16px; height: 16px; }");
+    cl->addWidget(wppCb);
+    cl->addWidget(usbCb);
+    ttLayout->addWidget(cg);
+
+    // auto-start
+    auto *asCb = new QCheckBox(QString::fromUtf8("TTcore \u968f\u7cfb\u7edf\u542f\u52a8\uff08\u5efa\u8bae\u5f00\u542f\uff09"));
+    asCb->setStyleSheet("QCheckBox { color: #ddd; font-size: 13px; spacing: 8px; } QCheckBox::indicator { width: 16px; height: 16px; }");
+    ttLayout->addWidget(asCb);
+
+    // check TTcore scheduled task status
+    QProcess asProc;
+    asProc.start("powershell", {
+        "-NoProfile", "-Command",
+        "Get-ScheduledTask -TaskName 'ttcore' -ErrorAction SilentlyContinue"
+    });
+    asProc.waitForFinished(3000);
+    asCb->setChecked(asProc.exitCode() == 0
+        && asProc.readAllStandardOutput().contains("ttcore"));
+
+    // log
+    auto *lg = new QGroupBox(QString::fromUtf8("\u8fd0\u884c\u65e5\u5fd7"));
+    auto *ll = new QVBoxLayout(lg);
+    auto *logBrowser = new QTextBrowser;
+    logBrowser->setStyleSheet(
+        "QTextBrowser { background: #0a0a0a; color: #0f0;"
+        "font-family: Consolas, 'Courier New', monospace;"
+        "font-size: 11px; border: 1px solid #333; border-radius: 4px; }"
+    );
+    logBrowser->setMinimumHeight(140);
+    ll->addWidget(logBrowser);
+    ttLayout->addWidget(lg, 1);
+
+    // save button
+    auto *saveBtn = new QPushButton(QString::fromUtf8("\u4fdd\u5b58\u914d\u7f6e"));
+    saveBtn->setStyleSheet(
+        "QPushButton { background: #555; color: #fff; font-weight: bold;"
+        "padding: 9px 0; border-radius: 4px; }"
+        "QPushButton:hover { background: #666; }"
+        "QPushButton:pressed { background: #777; }"
+    );
+    ttLayout->addWidget(saveBtn);
+
+    // ── TTcore page timer (poll status + log) ──
+    auto *pollTimer = new QTimer(ttPage);
+    auto doPoll = [=]() {
+        QLocalSocket sock;
+        sock.connectToServer("TTCorePipe");
+        if (!sock.waitForConnected(200)) {
+            ttIcon->setStyleSheet("color: #866; font-size: 18px;");
+            ttStatus->setText(QString::fromUtf8("\u5df2\u505c\u6b62"));
+            ttStartBtn->setEnabled(true);
+            ttStopBtn->setEnabled(false);
+            return;
+        }
+
+        ttIcon->setStyleSheet("color: #6a6; font-size: 18px;");
+        ttStatus->setText(QString::fromUtf8("\u8fd0\u884c\u4e2d"));
+        ttStartBtn->setEnabled(false);
+        ttStopBtn->setEnabled(true);
+
+        // fetch log
+        sock.write("log");
+        sock.waitForBytesWritten(200);
+        if (sock.waitForReadyRead(500)) {
+            auto resp = QJsonDocument::fromJson(sock.readAll());
+            if (resp.isArray()) {
+                QString html;
+                for (const auto &e : resp.array())
+                    html += e.toString().toHtmlEscaped() + "<br>";
+                logBrowser->setHtml(html);
+                logBrowser->verticalScrollBar()->setValue(
+                    logBrowser->verticalScrollBar()->maximum());
+            }
+        }
+        sock.disconnectFromServer();
+    };
+    connect(pollTimer, &QTimer::timeout, doPoll);
+    pollTimer->start(2000);
+
+    // ── TTcore page buttons ──
+    connect(ttStartBtn, &QPushButton::clicked, [=]() {
+        QString exe = QCoreApplication::applicationDirPath() + "/TTcore.exe";
+        QProcess::startDetached(exe);
+        QTimer::singleShot(500, doPoll);
+    });
+
+    connect(ttStopBtn, &QPushButton::clicked, [=]() {
+        QLocalSocket sock;
+        sock.connectToServer("TTCorePipe");
+        if (sock.waitForConnected(300)) {
+            sock.write("exit");
+            sock.waitForBytesWritten(300);
+            sock.disconnectFromServer();
+        }
+        QTimer::singleShot(500, doPoll);
+    });
+
+    // ── Save ──
+    auto doSave = [=]() {
+        QString path = QCoreApplication::applicationDirPath() + "/touchtools.json";
+        QFile f(path);
+        QJsonObject cfg;
+        if (f.open(QIODevice::ReadOnly)) {
+            cfg = QJsonDocument::fromJson(f.readAll()).object();
+            f.close();
+        }
+        cfg["wpptouchhelper_enabled"] = wppCb->isChecked();
+        cfg["usb_enabled"] = usbCb->isChecked();
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(QJsonDocument(cfg).toJson());
+            f.close();
+        }
+
+        // TTcore auto-start
+        bool wantStart = asCb->isChecked();
+        bool hasTask = false;
+        {
+            QProcess p;
+            p.start("powershell", {
+                "-NoProfile", "-Command",
+                "Get-ScheduledTask -TaskName 'ttcore' -ErrorAction SilentlyContinue"
+            });
+            p.waitForFinished(3000);
+            hasTask = p.exitCode() == 0 && p.readAllStandardOutput().contains("ttcore");
+        }
+
+        if (wantStart && !hasTask) {
+            QString exe = QDir::toNativeSeparators(
+                QCoreApplication::applicationDirPath() + "/TTcore.exe");
+            QString wd  = QDir::toNativeSeparators(
+                QCoreApplication::applicationDirPath());
+            QString ps = QString(
+                "$a=New-ScheduledTaskAction -Execute '%1' -Argument '-autostart' -WorkingDirectory '%2'; "
+                "$t=New-ScheduledTaskTrigger -AtLogOn; "
+                "$s=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; "
+                "Register-ScheduledTask -TaskName 'ttcore' -Action $a -Trigger $t -Settings $s -Force"
+            ).arg(exe, wd);
+            ShellExecuteW(NULL, L"runas", L"powershell",
+                (L"-NoProfile -Command \"" + ps.toStdWString() + L"\"").c_str(),
+                NULL, SW_HIDE);
+        } else if (!wantStart && hasTask) {
+            ShellExecuteW(NULL, L"runas", L"powershell",
+                L"-NoProfile -Command \"Unregister-ScheduledTask -TaskName 'ttcore' -Confirm:$false\"",
+                NULL, SW_HIDE);
+        }
+
+        // tell TTcore to reload
+        QLocalSocket sock;
+        sock.connectToServer("TTCorePipe");
+        if (sock.waitForConnected(300)) {
+            sock.write("reload");
+            sock.waitForBytesWritten(300);
+            sock.disconnectFromServer();
+        }
+
+        QTimer::singleShot(400, doPoll);
+    };
+
+    connect(saveBtn, &QPushButton::clicked, doSave);
+
+    // initial poll
+    doPoll();
+
+    auto *ttScroll = new QScrollArea;
+    ttScroll->setWidget(ttPage);
+    ttScroll->setWidgetResizable(true);
+    ttScroll->setFrameShape(QFrame::NoFrame);
+    m_stack->addWidget(ttScroll);        // 0: TTcore
+
+    // page 1: WPPTouchHelper config
+    auto *wppScroll = new QScrollArea;
+    wppScroll->setWidgetResizable(true);
+    wppScroll->setFrameShape(QFrame::NoFrame);
+    wppScroll->setWidget(new WppConfigPage);
+    m_stack->addWidget(wppScroll);        // 1: WPPTouchHelper
 
     // page 1: about
     auto *aboutPage = new QWidget;
@@ -127,7 +344,7 @@ ConfigPanel::ConfigPanel(QWidget *parent) : QWidget(parent) {
         "a { color: #6af; }"
     );
     aboutLayout->addWidget(aboutText, 1);
-    m_stack->addWidget(aboutPage);
+    m_stack->addWidget(aboutPage);       // 2: About
 
     body->addWidget(m_navList);
     body->addWidget(m_stack, 1);

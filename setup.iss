@@ -1,5 +1,5 @@
-; WPStools 安装程序
-#define MyAppName "WPStools"
+; WPPtools 安装程序
+#define MyAppName "WPPtools"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "wzmwayne"
 
@@ -10,13 +10,13 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-UninstallDisplayIcon={app}\WPStoolsPanel.exe
+UninstallDisplayIcon={app}\TouchtoolsPanel.exe
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=.\
-OutputBaseFilename=WPStools_Installer
+OutputBaseFilename=WPPtools_Installer
 SolidCompression=yes
 WizardStyle=modern
 
@@ -28,7 +28,9 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 
 [Files]
 Source: "dist\WPPTouchHelper.exe";     DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\WPStoolsPanel.exe";      DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\TouchtoolsPanel.exe";    DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\USBAssistant.exe";       DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\TTcore.exe";             DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\*.dll";                  DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\ico\*";                  DestDir: "{app}\ico"; Flags: ignoreversion
 Source: "dist\platforms\*";            DestDir: "{app}\platforms"; Flags: ignoreversion
@@ -42,8 +44,8 @@ Source: "dist\networkinformation\*";   DestDir: "{app}\networkinformation"; Flag
 
 [Icons]
 Name: "{autoprograms}\WPPTouchHelper";     Filename: "{app}\WPPTouchHelper.exe"
-Name: "{autoprograms}\WPStools 配置面板";   Filename: "{app}\WPStoolsPanel.exe"
+Name: "{autoprograms}\WPPtools 配置面板";   Filename: "{app}\TouchtoolsPanel.exe"
 Name: "{autodesktop}\WPPTouchHelper";       Filename: "{app}\WPPTouchHelper.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\WPPTouchHelper.exe"; Description: "运行 WPPTouchHelper"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\TTcore.exe"; Description: "运行 TTcore 守护进程"; Flags: nowait postinstall skipifsilent

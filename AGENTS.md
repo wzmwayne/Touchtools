@@ -1,17 +1,19 @@
-# Touchtools (WPStools) — AI 代理指南
+# WPPtools — AI 代理指南
 
 > **重要：** 本仓库所有交互必须使用**中文**。AI 的回复、解释、代码注释、更新文档等均须使用中文。
 
 ## 项目简介
 
-Windows 独占的 C++17/Qt6 应用，为 WPS 演示幻灯片放映提供悬浮屏幕控件。两个可执行文件通过本地命名管道通信。
+Windows 独占的 C++17/Qt6 应用集，为 WPS 演示幻灯片放映提供悬浮屏幕控件及其他工具。由 TTcore 守护进程统一管理各组件，通过本地命名管道通信。
 
-## 两个可执行文件
+## 四个可执行文件
 
-| 目标名 | 源码目录 | 入口点 | 输出文件 | 类型 |
-|--------|---------|--------|---------|------|
-| `WPPTouchHelper` | `app/` | `app/main.cpp` | 后台守护进程（无窗口、无托盘图标） | `WIN32_EXECUTABLE` |
-| `TouchtoolsPanel` | `panel/` | `panel/PanelMain.cpp` | 配置 GUI | `WIN32_EXECUTABLE` |
+| 目标名 | 源码目录 | 入口点 | 类型 |
+|--------|---------|--------|------|
+| `TTcore` | `core/` | `core/main.cpp` | 核心守护进程（无窗口），管理子进程 + IPC |
+| `WPPTouchHelper` | `wpp/` | `wpp/main.cpp` | 幻灯片控件（无窗口） |
+| `USBAssistant` | `wpp/` | `wpp/usb_main.cpp` | U盘检测弹出窗（无窗口） |
+| `TouchtoolsPanel` | `panel/` | `panel/PanelMain.cpp` | 配置 GUI |
 
 ## 构建
 
@@ -21,7 +23,7 @@ build.bat
 
 或手动——工具链路径硬编码在 `build.bat` 中（MSVC 14.51, WinSDK 10.0.26100.0, Qt 6.11.1 msvc2022_64）。需在 **VS 2022 开发者命令提示符** 中运行，或自行调整路径。
 
-构建完成后自动对两个 exe 执行 `windeployqt`，产物输出到 `build/`。
+构建完成后自动对四个 exe 执行 `windeployqt`，产物输出到 `build/`。
 
 ### 安装包发布流程
 ```
@@ -32,43 +34,54 @@ Inno Setup 编译 install\*.iss  # 生成安装包到 install/
 
 ### 构建注意事项
 - `CMAKE_AUTOMOC ON` — 不要手动生成 MOC 文件
-- 两个 `CMakeLists.txt` 均设置 `WIN32_EXECUTABLE TRUE` → 无控制台窗口（`LOG()` 调试输出到 stderr，仅调试器可见）
+- 所有 `CMakeLists.txt` 均设置 `WIN32_EXECUTABLE TRUE` → 无控制台窗口（`LOG()` 调试输出到 stderr，仅调试器可见）
 - `CMAKE_PREFIX_PATH` 必须指向 Qt 6 msvc2022_64
 - `build.bat` 已内置 cmake 路径和旧缓存自动检测清理
 
 ## 架构
 
 ```
-WPPTouchHelper (app/)
-├── main.cpp — QSharedMemory 单实例，QLocalServer("WPStoolsPipe") IPC 服务
-├── Config.h/.cpp — 单例，读写 <exe-dir>/touchtools.json
-├── FloatingControl.h/.cpp — 两侧翻页按钮，每 500ms 轮询幻灯片
-├── FloatingToolbar.h/.cpp — 底部工具栏（鼠标/笔/橡皮擦/退出），每 500ms 轮询
-└── KeySimulator.h/.cpp — SendInput 模拟按键，CreateToolhelp32Snapshot + EnumWindows 检测 wpp.exe
-
-TouchtoolsPanel (panel/)
-├── PanelMain.cpp — 入口，创建 ConfigPanel
-├── ConfigPanel.h/.cpp — 无边框主框架，标题栏 + 左侧导航 + QStackedWidget
-└── WppConfigPage.h/.cpp — WPPTouchHelper 配置页（滑块、开机自启、IPC 控制）
+WPPtools/
+├── wpp/                     # WPPTouchHelper + USBAssistant
+│   ├── main.cpp             — QSharedMemory 单实例，QLocalServer("WPStoolsPipe") IPC
+│   ├── usb_main.cpp         — USBAssistant 独立入口
+│   ├── USBAssistant.h/.cpp  — WM_DEVICECHANGE USB 检测 + 右下角弹窗
+│   ├── Config.h/.cpp        — 单例，读写 <exe-dir>/touchtools.json
+│   ├── FloatingControl.h/.cpp   — 两侧翻页按钮，每 500ms 轮询
+│   ├── FloatingToolbar.h/.cpp   — 底部工具栏，每 500ms 轮询
+│   └── KeySimulator.h/.cpp  — SendInput + 幻灯片窗口检测
+├── panel/                   # TouchtoolsPanel 配置 GUI
+│   ├── PanelMain.cpp        — 入口，创建 ConfigPanel
+│   ├── ConfigPanel.h/.cpp   — 无边框主框架，标题栏 + 左侧导航 + QStackedWidget
+│   └── WppConfigPage.h/.cpp — WPPTouchHelper 配置页（滑块、IPC 控制）
+├── core/                    # TTcore 守护进程
+│   └── main.cpp             — 单实例 + IPC("TTCorePipe") + QProcess 子进程 + QFileSystemWatcher
+├── ico/                     — PNG 图标素材
+└── dist/                    — 打包输出目录
 ```
 
-## IPC（两个 exe 之间的通信）
+## IPC 体系
 
-- **传输层：** `QLocalServer`/`QLocalSocket`，命名管道 `WPStoolsPipe`
-- **命令（面板 → 辅助工具）：** `"show\n"`、`"exit\n"`、`"status\n"`
-- **响应（辅助工具 → 面板）：** `"active=yes"` / `"active=no"`
-- **流程：** 面板保存 JSON → 发送 `"show"` → 辅助工具重载配置并重新显示控件（保持 8 秒存活）
+| 管道名 | 通信方 | 用途 |
+|--------|--------|------|
+| `TTCorePipe` | 面板 ↔ TTcore | 状态查询、日志拉取、起停组件、重载配置 |
+| `WPStoolsPipe` | 面板 ↔ WPPTouchHelper | 遗留：show/exit/status 命令 |
+
+- **TTcore 命令：** `status` / `log` / `reload` / `exit`
+- **TTcore 响应：** `"active=yes"` / `"active=no"` / JSON 日志数组
+- **WPPTouchHelper 命令：** `"show\n"` / `"exit\n"` / `"status\n"`
+- **流程：** 面板保存 JSON → 发送 `"reload"` → TTcore 重启或通知子进程
 
 ## 配置
 
 - JSON 文件位于 `<exe-dir>/touchtools.json`
 - 惰性写入——加载时若某键缺失，则设置默认值并重写整个文件
-- 面板写入文件后，通过 IPC 发送 `"show"` 命令通知辅助工具重载
+- TTcore 通过 `QFileSystemWatcher` 监听文件变更，自动重启子进程
 
 ## 幻灯片检测
 
 - `KeySimulator.cpp` 通过 `CreateToolhelp32Snapshot` 轮询 `wpp.exe` PID，然后通过 `EnumWindows` 匹配窗口标题子串 `"Slide Show"` 或 `"幻灯片放映"`
-- 三个控件各自独立通过 QTimer **每 500ms** 轮询
+- 控件通过 QTimer **每 500ms** 轮询
 - 检测到幻灯片 → 显示并置顶窗口；未检测到 → 隐藏（IPC 触发时有 8 秒保活期）
 
 ## 按键模拟
@@ -86,9 +99,17 @@ TouchtoolsPanel (panel/)
 
 ## 开机自启
 
-- 使用 **PowerShell `Register-ScheduledTask`**（管理员提权），`-AtLogOn` 触发器，所有用户登录时运行
-- 面板勾选框状态通过 `Get-ScheduledTask` 查询，而非注册表
+- **仅 TTcore** 通过计划任务启动（任务名 `ttcore`，`-autostart` 参数）
+- 面板设置通过 **PowerShell `Register-ScheduledTask`**（管理员提权），`-AtLogOn` 触发器，所有用户登录时运行
+- 旧任务名 `touchtools`（启用 TTcore 前使用，现即将弃用）
 - 开关操作通过 `ShellExecuteW(runas)` 弹 UAC 提权
+
+## U盘助手
+
+- `USBAssistant` 独立 exe，通过 `WM_DEVICECHANGE` 监听 USB 插入
+- 发现新 U 盘 → 右下角置顶弹窗，显示设备名称/盘符 + 绿色"打开U盘"按钮
+- 弹窗默认 5 秒自动消失
+- 由 TTcore 根据配置 `usb_enabled` 起停
 
 ## 图标加载的奇怪之处
 - `resources.qrc` 已删除，未使用
@@ -96,12 +117,12 @@ TouchtoolsPanel (panel/)
 
 ## 安装程序
 
-- `install/*.iss` — 当前 Inno Setup 脚本（使用 `dist/` 作为源，安装到 `%localappdata%\Touchtools`）
-- `setup.iss`（根目录）— 过时
+- `setup.iss`（根目录）— 当前使用，安装到 `%localappdata%\WPPtools`，含所有四个 exe、DLL、插件
+- `install/*.iss` — 旧的 Touchtools 独立包，待清理
 - Inno Setup 需要 `dist/` 目录由构建产物填充（exe + DLL + platforms/ + styles/ 等）
 
 ## 平台
 
 - 仅 Windows，无可移植性层
 - 使用 `windows.h`、`shellapi.h`、`tlhelp32.h` — 全程 Win32 API
-- 两个可执行文件均为 x64 架构
+- 四个可执行文件均为 x64 架构

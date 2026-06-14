@@ -16,9 +16,9 @@ set BUILD_DIR=%~dp0build
 
 :: Clear stale cache if source dir changed
 if exist "%BUILD_DIR%\CMakeCache.txt" (
-    findstr /m "WPStools" "%BUILD_DIR%\CMakeCache.txt" >nul 2>&1
+    findstr /m "WPPtools" "%BUILD_DIR%\CMakeCache.txt" >nul 2>&1
     if not errorlevel 1 (
-        echo ^> Stale cache detected ^(WPStools^), cleaning...
+        echo ^> Stale cache detected ^(WPPtools^), cleaning...
         del /f /q "%BUILD_DIR%\CMakeCache.txt" 2>nul
         rmdir /s /q "%BUILD_DIR%\CMakeFiles" 2>nul
     )
@@ -35,6 +35,8 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 echo === Deploying Qt DLLs ===
 windeployqt --release %BUILD_DIR%\WPPTouchHelper.exe 2>nul
 windeployqt --release %BUILD_DIR%\TouchtoolsPanel.exe 2>nul
+windeployqt --release %BUILD_DIR%\USBAssistant.exe 2>nul
+windeployqt --release %BUILD_DIR%\TTcore.exe 2>nul
 
 echo.
 echo Build complete!

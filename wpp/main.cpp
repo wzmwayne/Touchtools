@@ -15,7 +15,6 @@
 #include "KeySimulator.h"
 #include "FloatingControl.h"
 #include "FloatingToolbar.h"
-#include "USBAssistant.h"
 
 #ifndef SIID_PPTFILE
 #define SIID_PPTFILE ((SHSTOCKICONID)131)
@@ -90,8 +89,6 @@ int main(int argc, char *argv[]) {
         }
         client->deleteLater();
     });
-
-    USBAssistant usbAssistant;
 
     return app.exec();
 }

@@ -10,6 +10,11 @@ add_executable(WPPTouchHelper
     FloatingControl.cpp
     FloatingToolbar.cpp
     KeySimulator.cpp
+)
+
+add_executable(USBAssistant
+    usb_main.cpp
+    Config.cpp
     USBAssistant.cpp
 )
 
@@ -17,7 +22,16 @@ target_link_libraries(WPPTouchHelper
     Qt6::Core Qt6::Widgets Qt6::Gui Qt6::Network
 )
 
+target_link_libraries(USBAssistant
+    Qt6::Core Qt6::Widgets Qt6::Gui
+)
+
 set_target_properties(WPPTouchHelper PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    WIN32_EXECUTABLE TRUE
+)
+
+set_target_properties(USBAssistant PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     WIN32_EXECUTABLE TRUE
 )

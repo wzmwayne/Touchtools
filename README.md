@@ -1,34 +1,26 @@
-# WPStools — WPS PPT 触屏辅助工具
+# WPPtools — WPS PPT 触屏辅助工具集
 
-在触屏设备上使用 WPS 演示放映幻灯片时，提供悬浮翻页控件和工具栏，无需键盘即可操作。
+在触屏设备上使用 WPS 演示放映幻灯片时，提供悬浮翻页控件、工具栏及 U 盘助手。由 TTcore 守护进程统一管理各组件。
 
 ## 功能
 
 - **悬浮翻页按钮** — 屏幕两侧半透明按钮，上下翻页（模拟键盘方向键）
 - **底部工具栏** — 切换鼠标/笔/橡皮擦模式（Ctrl+A / Ctrl+P / Ctrl+E），一键退出放映
-- **配置面板** — 无边框暗色 UI，调节透明度、尺寸、边缘距离等
-- **开机自启** — 通过 Task Scheduler 实现（非注册表），工作目录自动设置
+- **U 盘助手** — 检测 USB 插入，右下角弹窗快速打开
+- **配置面板** — 无边框暗色 UI，调节透明度、尺寸、边缘距离，管理进程
+- **TTcore 守护进程** — 集中管理子进程启停、配置热重载、运行日志
+- **开机自启** — 通过 Task Scheduler 启动 TTcore，子进程由 TTcore 按配置启动
 - **自动检测** — 检测到 WPS 幻灯片放映时自动显示控件，退出放映后自动隐藏
 - **多级退出** — Esc → Alt+D+Esc → TerminateProcess 兜底，避免墨迹弹窗卡住
 
 ## 项目结构
 
 ```
-WPStools/
-├── app/                  # WPPTouchHelper（后台控件程序）
-│   ├── main.cpp          # 入口：单实例、本地 IPC、加载配置
-│   ├── Config.h/.cpp     # JSON 配置单例
-│   ├── KeySimulator.h/.cpp  # SendInput 按键 + 幻灯片窗口检测
-│   ├── FloatingControl.h/.cpp  # 侧边翻页按钮
-│   └── FloatingToolbar.h/.cpp  # 底部工具栏
-├── panel/                # WPStoolsPanel（配置面板）
-│   ├── PanelMain.cpp     # 入口
-│   └── ConfigPanel.h/.cpp  # 无边框 GUI，滑块调节参数
+WPPtools/
+├── wpp/                  # WPPTouchHelper + USBAssistant
+├── panel/                # TouchtoolsPanel（配置 GUI）
+├── core/                 # TTcore（守护进程）
 ├── ico/                  # PNG 图标素材
-│   ├── pen.png
-│   ├── mouse.png
-│   ├── eraser.png
-│   └── exit.png
 └── dist/                 # 打包输出目录
 ```
 
@@ -37,7 +29,7 @@ WPStools/
 ### 环境要求
 
 - Windows 10/11 x64
-- Visual Studio 2022 BuildTools（MSVC 14.4+）
+- Visual Studio 2022 BuildTools（MSVC 14.51+）
 - Qt 6.x（msvc2022_64）
 - CMake 3.16+
 
@@ -47,27 +39,14 @@ WPStools/
 build.bat
 ```
 
-或手动：
-
-```bat
-set INCLUDE=<MSVC include>;<SDK include>
-set LIB=<MSVC lib>;<SDK lib>
-set PATH=<MSVC bin>;<SDK bin>;<Qt bin>
-
-cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -B build
-cmake --build build
-windeployqt --release build/WPPTouchHelper.exe
-windeployqt --release build/WPStoolsPanel.exe
-```
-
-产物在 `build/` 下：`WPPTouchHelper.exe` + `WPStoolsPanel.exe`
+产物在 `build/` 下：`WPPTouchHelper.exe` + `TouchtoolsPanel.exe` + `USBAssistant.exe` + `TTcore.exe`
 
 ## 使用
 
-1. 运行 `WPPTouchHelper.exe`（托盘无图标，后台常驻）
-2. 打开 WPS 演示并开始放映幻灯片
-3. 屏幕两侧出现翻页按钮，底部出现工具栏
-4. 运行 `WPStoolsPanel.exe` 打开配置面板调节参数
+1. 运行 `TTcore.exe`（守护进程，托盘无图标）
+2. 运行 `TouchtoolsPanel.exe` 打开配置面板管理组件
+3. TTcore 按配置自动启动 WPPTouchHelper（幻灯片控件）和 USBAssistant（U盘助手）
+4. 打开 WPS 演示并开始放映幻灯片，屏幕两侧出现翻页按钮，底部出现工具栏
 
 ### 按键映射
 
@@ -78,7 +57,7 @@ windeployqt --release build/WPStoolsPanel.exe
 | 鼠标模式 (Ctrl+A) | 工具栏按钮 |
 | 笔模式 (Ctrl+P) | 工具栏按钮 |
 | 橡皮擦 (Ctrl+E) | 工具栏按钮 |
-| 退出放映 | Esc (多级重试) |
+| 退出放映 | Esc（多级重试） |
 
 ## 开源许可
 
