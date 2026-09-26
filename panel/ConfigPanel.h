@@ -13,6 +13,9 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
+private slots:
+    void onTabChanged(int index);
+
 private:
     QWidget *m_titleBar;
     QListWidget *m_navList;

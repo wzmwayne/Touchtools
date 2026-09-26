@@ -1,14 +1,15 @@
 #include "WppConfigPage.h"
+#include "TtIpc.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
-#include <QProcess>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QCoreApplication>
 #include <QLocalSocket>
 #include <windows.h>
+#include <tlhelp32.h>
 #include <cstdio>
 
 #define LOG(fmt, ...) do { \
@@ -41,6 +42,11 @@ WppConfigPage::WppConfigPage(QWidget *parent) : QWidget(parent) {
     header->addWidget(m_startBtn);
     header->addWidget(m_stopBtn);
     root->addLayout(header);
+
+    // enable checkbox
+    m_enabledCb = new QCheckBox(QString::fromUtf8("\u542f\u7528 WPPTouchHelper\uff08TTcore \u542f\u52a8\u65f6\u81ea\u52a8\u542f\u52a8\uff09"));
+    m_enabledCb->setStyleSheet("QCheckBox { color: #ddd; font-size: 13px; spacing: 8px; } QCheckBox::indicator { width: 16px; height: 16px; }");
+    root->addWidget(m_enabledCb);
 
     // toolbar group
     auto *tg = new QGroupBox(QString::fromUtf8("\u5de5\u5177\u680f\u8bbe\u7f6e"));
@@ -77,6 +83,16 @@ WppConfigPage::WppConfigPage(QWidget *parent) : QWidget(parent) {
 
     loadCfg();
     updateStatus();
+    m_timer->stop(); // off by default; ConfigPanel activates on tab switch
+}
+
+void WppConfigPage::setActive(bool active) {
+    if (active) {
+        updateStatus();
+        m_timer->start();
+    } else {
+        m_timer->stop();
+    }
 }
 
 void WppConfigPage::loadCfg() {
@@ -89,6 +105,7 @@ void WppConfigPage::loadCfg() {
             LOG("loadCfg: JSON parse error: %s", qPrintable(err.errorString()));
         f.close();
     }
+    m_enabledCb->setChecked(m_cfg.value("wpptouchhelper_enabled").toBool(true));
     for (auto &e : m_entries) {
         int v = m_cfg.contains(e.key) ? m_cfg[e.key].toInt() : e.sl->value();
         e.sl->setValue(v);
@@ -97,28 +114,40 @@ void WppConfigPage::loadCfg() {
 }
 
 void WppConfigPage::saveCfg() {
-    for (auto &e : m_entries)
-        m_cfg[e.key] = e.sl->value();
     QString path = QCoreApplication::applicationDirPath() + "/touchtools.json";
     QFile f(path);
+    if (f.open(QIODevice::ReadOnly)) {
+        m_cfg = QJsonDocument::fromJson(f.readAll()).object();
+        f.close();
+    }
+    m_cfg["wpptouchhelper_enabled"] = m_enabledCb->isChecked();
+    for (auto &e : m_entries)
+        m_cfg[e.key] = e.sl->value();
     if (f.open(QIODevice::WriteOnly)) {
         f.write(QJsonDocument(m_cfg).toJson());
         f.close();
     }
 }
 
-static bool isPipeRunning() {
-    QLocalSocket sock;
-    sock.connectToServer("WPStoolsPipe");
-    if (sock.waitForConnected(200)) {
-        sock.disconnectFromServer();
-        return true;
+static bool isProcessRunning() {
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return false;
+    PROCESSENTRY32W pe = { sizeof(pe) };
+    bool found = false;
+    if (Process32FirstW(snap, &pe)) {
+        do {
+            if (_wcsicmp(pe.szExeFile, L"WPPTouchHelper.exe") == 0) {
+                found = true;
+                break;
+            }
+        } while (Process32NextW(snap, &pe));
     }
-    return false;
+    CloseHandle(snap);
+    return found;
 }
 
 void WppConfigPage::updateStatus() {
-    bool running = isPipeRunning();
+    bool running = isProcessRunning();
 
     if (running) {
         m_statusIcon->setStyleSheet("color: #6a6; font-size: 18px; background: transparent;");
@@ -134,34 +163,33 @@ void WppConfigPage::updateStatus() {
 }
 
 void WppConfigPage::onStart() {
-    if (isPipeRunning()) return;
-    QString exe = QCoreApplication::applicationDirPath() + "/WPPTouchHelper.exe";
-    QProcess::startDetached(exe);
-    updateStatus();
+    ttIpcSend("start wpptouchhelper");
+    QTimer::singleShot(500, this, &WppConfigPage::updateStatus);
 }
 
 void WppConfigPage::onStop() {
-    QLocalSocket sock;
-    sock.connectToServer("WPStoolsPipe");
-    if (sock.waitForConnected(500)) {
-        sock.write("exit");
-        sock.waitForBytesWritten(500);
-        sock.disconnectFromServer();
-        sock.waitForDisconnected(1000);
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot != INVALID_HANDLE_VALUE) {
+        PROCESSENTRY32W pe = { sizeof(pe) };
+        if (Process32FirstW(snapshot, &pe)) {
+            do {
+                if (_wcsicmp(pe.szExeFile, L"WPPTouchHelper.exe") == 0) {
+                    HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+                    if (hProc) {
+                        TerminateProcess(hProc, 0);
+                        CloseHandle(hProc);
+                    }
+                }
+            } while (Process32NextW(snapshot, &pe));
+        }
+        CloseHandle(snapshot);
     }
     QTimer::singleShot(500, this, &WppConfigPage::updateStatus);
 }
 
 void WppConfigPage::onSave() {
     saveCfg();
-
-    QLocalSocket sock;
-    sock.connectToServer("WPStoolsPipe");
-    if (sock.waitForConnected(500)) {
-        sock.write("show");
-        sock.waitForBytesWritten(500);
-        sock.disconnectFromServer();
-    }
+    ttIpcSend("reload");
 }
 
 QWidget* WppConfigPage::makeSlider(const QString &label, const QString &key,

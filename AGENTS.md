@@ -1,4 +1,4 @@
-# WPPtools — AI 代理指南
+# TouchTools — AI 代理指南
 
 > **重要：** 本仓库所有交互必须使用**中文**。AI 的回复、解释、代码注释、更新文档等均须使用中文。
 
@@ -41,7 +41,7 @@ Inno Setup 编译 install\*.iss  # 生成安装包到 install/
 ## 架构
 
 ```
-WPPtools/
+TouchTools/
 ├── wpp/                     # WPPTouchHelper + USBAssistant
 │   ├── main.cpp             — QSharedMemory 单实例，QLocalServer("WPStoolsPipe") IPC
 │   ├── usb_main.cpp         — USBAssistant 独立入口
@@ -99,7 +99,7 @@ WPPtools/
 
 ## 开机自启
 
-- **仅 TTcore** 通过计划任务启动（任务名 `ttcore`，`-autostart` 参数）
+- **仅 TTcore** 通过计划任务启动（任务名 `ttcore`）
 - 面板设置通过 **PowerShell `Register-ScheduledTask`**（管理员提权），`-AtLogOn` 触发器，所有用户登录时运行
 - 旧任务名 `touchtools`（启用 TTcore 前使用，现即将弃用）
 - 开关操作通过 `ShellExecuteW(runas)` 弹 UAC 提权
@@ -117,7 +117,7 @@ WPPtools/
 
 ## 安装程序
 
-- `setup.iss`（根目录）— 当前使用，安装到 `%localappdata%\WPPtools`，含所有四个 exe、DLL、插件
+- `setup.iss`（根目录）— 当前使用，安装到 `%localappdata%\TouchTools`，含所有四个 exe、DLL、插件
 - `install/*.iss` — 旧的 Touchtools 独立包，待清理
 - Inno Setup 需要 `dist/` 目录由构建产物填充（exe + DLL + platforms/ + styles/ 等）
 

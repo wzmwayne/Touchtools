@@ -1,5 +1,5 @@
-; WPPtools 安装程序
-#define MyAppName "WPPtools"
+; TouchTools 安装程序
+#define MyAppName "TouchTools"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "wzmwayne"
 
@@ -16,7 +16,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=.\
-OutputBaseFilename=WPPtools_Installer
+OutputBaseFilename=TouchTools_Installer
 SolidCompression=yes
 WizardStyle=modern
 
@@ -44,7 +44,7 @@ Source: "dist\networkinformation\*";   DestDir: "{app}\networkinformation"; Flag
 
 [Icons]
 Name: "{autoprograms}\WPPTouchHelper";     Filename: "{app}\WPPTouchHelper.exe"
-Name: "{autoprograms}\WPPtools 配置面板";   Filename: "{app}\TouchtoolsPanel.exe"
+Name: "{autoprograms}\TouchTools 配置面板";   Filename: "{app}\TouchtoolsPanel.exe"
 Name: "{autodesktop}\WPPTouchHelper";       Filename: "{app}\WPPTouchHelper.exe"; Tasks: desktopicon
 
 [Run]

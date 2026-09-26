@@ -1,4 +1,4 @@
-# WPPtools — WPS PPT 触屏辅助工具集
+# TouchTools — WPS PPT 触屏辅助工具集
 
 在触屏设备上使用 WPS 演示放映幻灯片时，提供悬浮翻页控件、工具栏及 U 盘助手。由 TTcore 守护进程统一管理各组件。
 
@@ -16,7 +16,7 @@
 ## 项目结构
 
 ```
-WPPtools/
+TouchTools/
 ├── wpp/                  # WPPTouchHelper + USBAssistant
 ├── panel/                # TouchtoolsPanel（配置 GUI）
 ├── core/                 # TTcore（守护进程）

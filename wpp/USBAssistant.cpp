@@ -74,11 +74,27 @@ USBAssistant::USBAssistant(QWidget *parent)
     m_hideTimer.setSingleShot(true);
     connect(&m_hideTimer, &QTimer::timeout, this, [this]() { hide(); });
 
+    // initial drive snapshot
+    m_lastDriveMask = GetLogicalDrives();
+
+    // register for volume device notifications
+    DEV_BROADCAST_VOLUME filter = {};
+    filter.dbcv_size = sizeof(filter);
+    filter.dbcv_devicetype = DBT_DEVTYP_VOLUME;
+    m_notifyHandle = RegisterDeviceNotificationW(
+        reinterpret_cast<HWND>(winId()), &filter, DEVICE_NOTIFY_WINDOW_HANDLE);
+
+    // polling backup every 2s
+    connect(&m_pollTimer, &QTimer::timeout, this, &USBAssistant::pollDrives);
+    m_pollTimer.start(2000);
+
     QCoreApplication::instance()->installNativeEventFilter(this);
 }
 
 USBAssistant::~USBAssistant() {
     QCoreApplication::instance()->removeNativeEventFilter(this);
+    if (m_notifyHandle)
+        UnregisterDeviceNotification(m_notifyHandle);
 }
 
 bool USBAssistant::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) {
@@ -86,20 +102,53 @@ bool USBAssistant::nativeEventFilter(const QByteArray &eventType, void *message,
         return false;
 
     MSG *msg = static_cast<MSG*>(message);
-    if (msg->message == WM_DEVICECHANGE && msg->wParam == DBT_DEVICEARRIVAL) {
-        auto *hdr = reinterpret_cast<DEV_BROADCAST_HDR*>(msg->lParam);
-        if (hdr && hdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
-            auto *vol = reinterpret_cast<DEV_BROADCAST_VOLUME*>(hdr);
-            char drive = driveFromMask(vol->dbcv_unitmask);
-            if (drive) {
-                QString drivePath = QString("%1:\\").arg(drive);
-                QTimer::singleShot(600, this, [this, drivePath]() {
-                    deliverPopup(drivePath);
-                });
+    if (msg->message == WM_DEVICECHANGE) {
+        if (msg->wParam == DBT_DEVICEARRIVAL) {
+            auto *hdr = reinterpret_cast<DEV_BROADCAST_HDR*>(msg->lParam);
+            if (hdr && hdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
+                auto *vol = reinterpret_cast<DEV_BROADCAST_VOLUME*>(hdr);
+                char drive = driveFromMask(vol->dbcv_unitmask);
+                if (drive) {
+                    QString drivePath = QString("%1:\\").arg(drive);
+                    m_lastDriveMask |= (1 << (drive - 'A'));
+                    QTimer::singleShot(600, this, [this, drivePath]() {
+                        deliverPopup(drivePath);
+                    });
+                }
+            }
+        } else if (msg->wParam == DBT_DEVICEREMOVECOMPLETE) {
+            auto *hdr = reinterpret_cast<DEV_BROADCAST_HDR*>(msg->lParam);
+            if (hdr && hdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
+                auto *vol = reinterpret_cast<DEV_BROADCAST_VOLUME*>(hdr);
+                char drive = driveFromMask(vol->dbcv_unitmask);
+                if (drive)
+                    m_lastDriveMask &= ~(1 << (drive - 'A'));
             }
         }
     }
     return false;
+}
+
+void USBAssistant::pollDrives() {
+    if (!Config::instance().usbEnabled()) return;
+
+    DWORD current = GetLogicalDrives();
+    DWORD added = current & ~m_lastDriveMask;
+    m_lastDriveMask = current;
+
+    if (added) {
+        for (char d = 'A'; d <= 'Z'; ++d) {
+            if (added & 1) {
+                char root[] = { d, ':', '\\', '\0' };
+                if (GetDriveTypeA(root) == DRIVE_REMOVABLE) {
+                    QString drivePath = QString("%1:\\").arg(d);
+                    deliverPopup(drivePath);
+                    return;
+                }
+            }
+            added >>= 1;
+        }
+    }
 }
 
 void USBAssistant::deliverPopup(const QString &drivePath) {

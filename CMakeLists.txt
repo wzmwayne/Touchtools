@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(WPPtools)
+project(TouchTools)
 
 add_subdirectory(wpp)
 add_subdirectory(panel)

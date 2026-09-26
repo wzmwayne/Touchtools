@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
+#include <QCheckBox>
 #include <QTimer>
 #include <QJsonObject>
 
@@ -11,6 +12,7 @@ class WppConfigPage : public QWidget {
     Q_OBJECT
 public:
     explicit WppConfigPage(QWidget *parent = nullptr);
+    void setActive(bool active);
 
 private slots:
     void onStart();
@@ -28,6 +30,7 @@ private:
     QPushButton *m_startBtn;
     QPushButton *m_stopBtn;
     QPushButton *m_saveBtn;
+    QCheckBox *m_enabledCb;
     QTimer *m_timer;
     QJsonObject m_cfg;
 

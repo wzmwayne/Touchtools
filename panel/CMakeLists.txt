@@ -8,6 +8,8 @@ add_executable(TouchtoolsPanel
     PanelMain.cpp
     ConfigPanel.cpp
     WppConfigPage.cpp
+    UsbConfigPage.cpp
+    TtIpc.cpp
 )
 
 target_link_libraries(TouchtoolsPanel

@@ -14,11 +14,18 @@ set LIB=%MSVC_DIR%\lib\x64;%SDK_DIR%\Lib\%SDK_VER%\ucrt\x64;%SDK_DIR%\Lib\%SDK_V
 
 set BUILD_DIR=%~dp0build
 
+:: Kill any running processes to prevent linker lock
+echo Killing running processes...
+taskkill /f /im TouchtoolsPanel.exe 2>nul
+taskkill /f /im TTcore.exe 2>nul
+taskkill /f /im USBAssistant.exe 2>nul
+taskkill /f /im WPPTouchHelper.exe 2>nul
+
 :: Clear stale cache if source dir changed
 if exist "%BUILD_DIR%\CMakeCache.txt" (
-    findstr /m "WPPtools" "%BUILD_DIR%\CMakeCache.txt" >nul 2>&1
+    findstr /m "TouchTools" "%BUILD_DIR%\CMakeCache.txt" >nul 2>&1
     if not errorlevel 1 (
-        echo ^> Stale cache detected ^(WPPtools^), cleaning...
+        echo ^> Stale cache detected ^(TouchTools^), cleaning...
         del /f /q "%BUILD_DIR%\CMakeCache.txt" 2>nul
         rmdir /s /q "%BUILD_DIR%\CMakeFiles" 2>nul
     )

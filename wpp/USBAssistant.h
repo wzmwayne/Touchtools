@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QAbstractNativeEventFilter>
+#include <windows.h>
 
 class USBAssistant : public QWidget, public QAbstractNativeEventFilter {
     Q_OBJECT
@@ -17,6 +18,7 @@ protected:
 private slots:
     void onOpenDrive();
     void deliverPopup(const QString &drivePath);
+    void pollDrives();
 
 private:
     QString volumeNameForDrive(const QString &drivePath);
@@ -26,5 +28,8 @@ private:
     QLabel *m_infoLabel;
     QPushButton *m_openBtn;
     QTimer m_hideTimer;
+    QTimer m_pollTimer;
     QString m_drivePath;
+    HDEVNOTIFY m_notifyHandle = nullptr;
+    DWORD m_lastDriveMask = 0;
 };

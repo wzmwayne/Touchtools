@@ -2,7 +2,7 @@
 ; 有关创建 Inno Setup 脚本文件的详细信息，请参阅帮助文档！
 ; 仅供非商业使用
 
-#define MyAppName "WPPtools"
+#define MyAppName "TouchTools"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "wzmwayne"
 #define MyAppURL "wzml.cc.cd"
@@ -39,7 +39,7 @@ DisableProgramGroupPage=yes
 LicenseFile={#ProjectRoot}\LICENSE
 PrivilegesRequired=lowest
 OutputDir={#ProjectRoot}\install
-OutputBaseFilename=WPPtools_online
+OutputBaseFilename=TouchTools_online
 SolidCompression=yes
 WizardStyle=modern dynamic
 

@@ -16,6 +16,7 @@ add_executable(USBAssistant
     usb_main.cpp
     Config.cpp
     USBAssistant.cpp
+    UIAccess.cpp
 )
 
 target_link_libraries(WPPTouchHelper

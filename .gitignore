@@ -4,7 +4,7 @@ dist/
 
 # Installer outputs
 mysetup.exe
-WPPtools_Installer.exe
+TouchTools_Installer.exe
 install/*.exe
 
 # IDE

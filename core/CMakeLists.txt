@@ -10,4 +10,5 @@ target_link_libraries(TTcore Qt6::Core Qt6::Network)
 set_target_properties(TTcore PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     WIN32_EXECUTABLE TRUE
+    LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\""
 )
